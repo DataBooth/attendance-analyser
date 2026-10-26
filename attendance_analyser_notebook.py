@@ -175,6 +175,68 @@ def _(duckdb, pl, Path, Optional):
                 """
             )
 
+        def week_on_week_overlap(self) -> pl.DataFrame:
+            """Consecutive-week attendee overlap metrics.
+
+            For each week after the first, returns:
+            - shared: people present in both this week and the previous week
+            - retention: shared / previous week headcount
+            - jaccard: shared / union of the two weeks
+            - newcomers / leavers relative to the previous week
+            """
+            return self._query(
+                f"""
+                WITH weeks AS (
+                    SELECT DISTINCT week
+                    FROM {self.table}
+                ),
+                ordered AS (
+                    SELECT
+                        week,
+                        LAG(week) OVER (ORDER BY week) AS prev_week
+                    FROM weeks
+                ),
+                pairs AS (
+                    SELECT week, prev_week
+                    FROM ordered
+                    WHERE prev_week IS NOT NULL
+                ),
+                shared AS (
+                    SELECT
+                        p.week,
+                        p.prev_week,
+                        COUNT(*) AS shared
+                    FROM pairs p
+                    JOIN {self.table} curr
+                      ON curr.week = p.week
+                    JOIN {self.table} prev
+                      ON prev.week = p.prev_week
+                     AND prev.person = curr.person
+                    GROUP BY p.week, p.prev_week
+                ),
+                counts AS (
+                    SELECT week, COUNT(*) AS n
+                    FROM {self.table}
+                    GROUP BY week
+                )
+                SELECT
+                    p.prev_week,
+                    p.week,
+                    c_prev.n AS prev_count,
+                    c_curr.n AS curr_count,
+                    s.shared,
+                    c_curr.n - s.shared AS newcomers,
+                    c_prev.n - s.shared AS leavers,
+                    s.shared * 1.0 / c_prev.n AS retention,
+                    s.shared * 1.0 / (c_prev.n + c_curr.n - s.shared) AS jaccard
+                FROM pairs p
+                JOIN shared s USING (week, prev_week)
+                JOIN counts c_prev ON c_prev.week = p.prev_week
+                JOIN counts c_curr ON c_curr.week = p.week
+                ORDER BY p.week
+                """
+            )
+
         def add_service_filter(self, service_type: Optional[str] = None) -> None:
             """Placeholder for when the source table has service_type etc."""
             pass
@@ -282,6 +344,91 @@ def _(analyser, px, threshold):
     fig_weekly.update_layout(height=400, legend_title_text="")
     fig_weekly
     return (fig_weekly,)
+
+
+@app.cell
+def _(analyser, mo):
+    overlap = analyser.week_on_week_overlap()
+    mo.md(
+        f"**Week-on-week overlap** — "
+        f"mean retention {overlap['retention'].mean():.0%}, "
+        f"mean Jaccard {overlap['jaccard'].mean():.0%}, "
+        f"mean shared {overlap['shared'].mean():.0f} people "
+        f"(newcomers {overlap['newcomers'].mean():.0f} / "
+        f"leavers {overlap['leavers'].mean():.0f})"
+    )
+    return (overlap,)
+
+
+@app.cell
+def _(go, overlap):
+    odf = overlap.to_pandas()
+    fig_overlap = go.Figure()
+    fig_overlap.add_trace(
+        go.Scatter(
+            x=odf["week"],
+            y=odf["retention"],
+            mode="lines+markers",
+            name="Retention (shared ÷ previous week)",
+            hovertemplate=(
+                "%{x|%Y-%m-%d}<br>Retention: %{y:.1%}"
+                "<br>Shared: %{customdata[0]}"
+                "<br>Prev: %{customdata[1]} → Curr: %{customdata[2]}"
+                "<extra></extra>"
+            ),
+            customdata=odf[["shared", "prev_count", "curr_count"]].to_numpy(),
+        )
+    )
+    fig_overlap.add_trace(
+        go.Scatter(
+            x=odf["week"],
+            y=odf["jaccard"],
+            mode="lines+markers",
+            name="Jaccard (shared ÷ union)",
+            hovertemplate="%{x|%Y-%m-%d}<br>Jaccard: %{y:.1%}<extra></extra>",
+        )
+    )
+    fig_overlap.add_trace(
+        go.Bar(
+            x=odf["week"],
+            y=odf["shared"],
+            name="Shared people",
+            opacity=0.35,
+            yaxis="y2",
+            hovertemplate="%{x|%Y-%m-%d}<br>Shared: %{y}<extra></extra>",
+        )
+    )
+    fig_overlap.update_layout(
+        title="Week-on-week attendee overlap",
+        height=450,
+        yaxis=dict(title="Overlap rate", tickformat=".0%", range=[0, 1]),
+        yaxis2=dict(
+            title="Shared people",
+            overlaying="y",
+            side="right",
+            showgrid=False,
+        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        barmode="overlay",
+    )
+    fig_overlap
+    return (fig_overlap,)
+
+
+@app.cell
+def _(overlap, px):
+    flow = overlap.select(["week", "newcomers", "leavers", "shared"]).to_pandas()
+    fig_flow = px.bar(
+        flow,
+        x="week",
+        y=["shared", "newcomers", "leavers"],
+        title="Week-on-week composition: shared, newcomers, leavers",
+        labels={"value": "People", "variable": "Group"},
+        barmode="group",
+    )
+    fig_flow.update_layout(height=400, legend_title_text="")
+    fig_flow
+    return (fig_flow,)
 
 
 @app.cell

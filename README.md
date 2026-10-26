@@ -44,9 +44,10 @@ uv run marimo edit attendance_analyser_notebook.py
 7. Attendance-rate histogram
 8. Core group table
 9. Weekly total vs core line chart
-10. Frequent-attendee heatmap
-11. Recent vs overall scatter
-12. Separation-of-concerns note
+10. Week-on-week overlap (retention, Jaccard, shared/newcomers/leavers)
+11. Frequent-attendee heatmap
+12. Recent vs overall scatter
+13. Separation-of-concerns note
 
 ## Public API
 
@@ -58,3 +59,4 @@ uv run marimo edit attendance_analyser_notebook.py
 | `weekly_totals(threshold)` | Polars: `week`, `total_attendees`, `core_present` |
 | `heatmap_data(min_rate)` | Polars: `person`, `week`, `attended` |
 | `recency_comparison(recent_weeks, min_overall=0.2)` | Polars: `person`, `overall_rate`, `recent_rate`, `delta` |
+| `week_on_week_overlap()` | Polars: `prev_week`, `week`, `prev_count`, `curr_count`, `shared`, `newcomers`, `leavers`, `retention`, `jaccard` |

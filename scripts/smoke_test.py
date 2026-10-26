@@ -137,6 +137,48 @@ class AttendanceAnalyser:
             """
         )
 
+    def week_on_week_overlap(self) -> pl.DataFrame:
+        return self._query(
+            f"""
+            WITH weeks AS (
+                SELECT DISTINCT week FROM {self.table}
+            ),
+            ordered AS (
+                SELECT week, LAG(week) OVER (ORDER BY week) AS prev_week
+                FROM weeks
+            ),
+            pairs AS (
+                SELECT week, prev_week FROM ordered WHERE prev_week IS NOT NULL
+            ),
+            shared AS (
+                SELECT p.week, p.prev_week, COUNT(*) AS shared
+                FROM pairs p
+                JOIN {self.table} curr ON curr.week = p.week
+                JOIN {self.table} prev
+                  ON prev.week = p.prev_week AND prev.person = curr.person
+                GROUP BY p.week, p.prev_week
+            ),
+            counts AS (
+                SELECT week, COUNT(*) AS n FROM {self.table} GROUP BY week
+            )
+            SELECT
+                p.prev_week,
+                p.week,
+                c_prev.n AS prev_count,
+                c_curr.n AS curr_count,
+                s.shared,
+                c_curr.n - s.shared AS newcomers,
+                c_prev.n - s.shared AS leavers,
+                s.shared * 1.0 / c_prev.n AS retention,
+                s.shared * 1.0 / (c_prev.n + c_curr.n - s.shared) AS jaccard
+            FROM pairs p
+            JOIN shared s USING (week, prev_week)
+            JOIN counts c_prev ON c_prev.week = p.prev_week
+            JOIN counts c_curr ON c_curr.week = p.week
+            ORDER BY p.week
+            """
+        )
+
 
 def main() -> None:
     csv_path = ROOT / "artifacts" / "synthetic_attendance.csv"
@@ -153,11 +195,24 @@ def main() -> None:
     assert {"person", "overall_rate", "recent_rate", "delta"} <= set(
         recency.columns
     )
+    overlap = analyser.week_on_week_overlap()
+    assert {
+        "prev_week",
+        "week",
+        "shared",
+        "retention",
+        "jaccard",
+        "newcomers",
+        "leavers",
+    } <= set(overlap.columns)
+    assert overlap.height == analyser.n_weeks() - 1
     print(
         f"OK n_weeks={analyser.n_weeks()} "
         f"people={rates.height} core={core.height} "
         f"weeks={weekly.height} heat_rows={heat.height} "
-        f"recency={recency.height}"
+        f"recency={recency.height} "
+        f"overlap_mean_retention={overlap['retention'].mean():.1%} "
+        f"overlap_mean_jaccard={overlap['jaccard'].mean():.1%}"
     )
 
 
