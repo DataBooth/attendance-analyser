@@ -29,3 +29,7 @@ test:
 # Check notebook is valid Marimo Python
 check:
     uv run marimo check attendance_analyser_notebook.py
+
+# Export session JSON for molab static previews (commit __marimo__/session/)
+session:
+    uv run marimo export session attendance_analyser_notebook.py

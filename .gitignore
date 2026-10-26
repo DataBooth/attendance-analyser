@@ -10,4 +10,7 @@
 dist/
 build/
 .marimo/
-__marimo__/
+# Keep session snapshots for molab static previews; ignore other marimo caches
+__marimo__/*
+!__marimo__/session/
+!__marimo__/session/**

@@ -1,10 +1,29 @@
 # Attendance Analyser
 
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/DataBooth/attendance-analyser/blob/main/attendance_analyser_notebook.py)
+
 Reactive [Marimo](https://marimo.io) notebook for weekly event attendance analysis.
 
 Analysis logic lives in a pure Python class (`AttendanceAnalyser`) backed by an
 in-memory DuckDB table. Marimo cells only bind UI controls and render Plotly
 charts.
+
+## Try it (molab)
+
+| Mode | Link |
+|------|------|
+| Static preview | [molab GitHub preview](https://molab.marimo.io/github/DataBooth/attendance-analyser/blob/main/attendance_analyser_notebook.py) |
+| Interactive (WASM) | [molab WASM](https://molab.marimo.io/github/DataBooth/attendance-analyser/blob/main/attendance_analyser_notebook.py/wasm) |
+
+For full server Python (recommended for DuckDB + CSV), open
+[molab.marimo.io](https://molab.marimo.io), create a notebook from the GitHub URL
+above, then use **Share**. GitHub remains the source of truth for synced notebooks.
+
+Generate badges/links at [molab.marimo.io/github](https://molab.marimo.io/github).
+
+Static previews include rendered outputs when
+`__marimo__/session/attendance_analyser_notebook.py.json` is committed
+(regenerate with `just session`).
 
 ## Data format
 
@@ -12,8 +31,8 @@ Long-format CSV with one row per person per week attended:
 
 | week       | person |
 |------------|--------|
-| 2024-01-07 | P01    |
-| 2024-01-07 | P02    |
+| 2025-01-05 | P001   |
+| 2025-01-05 | P002   |
 
 ## Quick start
 
