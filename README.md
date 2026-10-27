@@ -1,5 +1,7 @@
 # Attendance Analyser
 
+**Status:** parked — see [`STATUS.md`](STATUS.md) for what’s done and what’s next.
+
 [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/DataBooth/attendance-analyser/blob/main/overview_notebook.py)
 
 Reactive [Marimo](https://marimo.io) notebooks for weekly event attendance analysis
