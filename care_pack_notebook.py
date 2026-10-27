@@ -44,18 +44,26 @@ These are prompts for human care — absence is not automatically a problem.
 
 Logic: `AttendanceAnalyser` in `attendance_logic/`. Overview charts:
 `overview_notebook.py`.
+
+Optional **away intervals** CSV pauses care clocks for holidays/sickness
+(see `docs/proposal-excused-absences.md`).
 """)
     return
 
 
 @app.cell
 def _(AttendanceAnalyser, Path):
-    _candidates = [
+    _att_candidates = [
         Path("artifacts/synthetic_attendance.csv"),
         Path("/workspace/artifacts/synthetic_attendance.csv"),
     ]
-    _csv_path = next((p for p in _candidates if p.exists()), _candidates[0])
-    analyser = AttendanceAnalyser(_csv_path)
+    _away_candidates = [
+        Path("artifacts/synthetic_away_intervals.csv"),
+        Path("/workspace/artifacts/synthetic_away_intervals.csv"),
+    ]
+    _csv_path = next((p for p in _att_candidates if p.exists()), _att_candidates[0])
+    _away_path = next((p for p in _away_candidates if p.exists()), None)
+    analyser = AttendanceAnalyser(_csv_path, away_csv=_away_path)
     return (analyser,)
 
 
@@ -76,27 +84,45 @@ def _(mo):
     top_n = mo.ui.slider(
         5, 30, value=15, step=1, label="Top N per list", show_value=True
     )
+    respect_away = mo.ui.switch(
+        value=True,
+        label="Respect known away (excused absences)",
+    )
     mo.vstack(
         [
             mo.hstack([threshold, recent_weeks, min_weeks_away], justify="start"),
-            mo.hstack([new_within, top_n], justify="start"),
+            mo.hstack([new_within, top_n, respect_away], justify="start"),
         ]
     )
-    return min_weeks_away, new_within, recent_weeks, threshold, top_n
+    return min_weeks_away, new_within, recent_weeks, respect_away, threshold, top_n
 
 
 @app.cell
-def _(analyser, min_weeks_away, mo, new_within, recent_weeks, threshold, top_n):
+def _(
+    analyser,
+    min_weeks_away,
+    mo,
+    new_within,
+    recent_weeks,
+    respect_away,
+    threshold,
+    top_n,
+):
     pack = analyser.care_pack(
         core_threshold=threshold.value,
         recent_weeks=recent_weeks.value,
         min_weeks_away=min_weeks_away.value,
         new_within_weeks=new_within.value,
         top_n=top_n.value,
+        respect_away=respect_away.value,
     )
+    _away_n = pack["away_intervals"].height if "away_intervals" in pack else 0
+    _mode = "respecting known away" if respect_away.value else "raw calendar gaps"
     mo.md(
         f"""
-**As of** {analyser.max_week()}  |  **Weeks in data:** {analyser.n_weeks()}
+**As of** {analyser.max_week()}  |  **Weeks in data:** {analyser.n_weeks()}  |  **Mode:** {_mode}
+
+Away intervals loaded: **{_away_n}** (see table below). Excused weeks pause check-in clocks.
 
 | List | Count (top N) |
 |------|----------------|
@@ -110,6 +136,17 @@ def _(analyser, min_weeks_away, mo, new_within, recent_weeks, threshold, top_n):
 """
     )
     return (pack,)
+
+
+@app.cell
+def _(mo, pack):
+    _away = pack.get("away_intervals")
+    if _away is None or _away.height == 0:
+        _away_view = mo.md("_No away intervals loaded — using attendance only._")
+    else:
+        _away_view = mo.ui.table(_away, label="Known away / excused intervals")
+    _away_view
+    return
 
 
 @app.cell
@@ -129,6 +166,8 @@ def _(mo, pack):
             "reason",
             "suggested_action",
             "weeks_since_last",
+            "weeks_since_last_unexplained",
+            "known_away_now",
             "overall_rate",
             "recent_rate",
             "delta",
@@ -136,6 +175,8 @@ def _(mo, pack):
             "streak_at_last_seen",
             "priority_score",
             "last_seen",
+            "suppression_note",
+            "active_away_detail",
         ]
         if c in pack["absence"].columns
     ]

@@ -328,6 +328,48 @@ def main(today: date | None = None) -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     df.write_csv(OUT)
 
+    # Phase 1: synthetic excused absences for care-pack demos
+    away_path = ROOT / "artifacts" / "synthetic_away_intervals.csv"
+    last = weeks[-1]
+    away_rows = []
+    for pid in ("C003", "C011", "C019"):
+        away_rows.append({
+            "person": pid,
+            "start_week": (last - timedelta(weeks=4)).isoformat(),
+            "end_week": last.isoformat(),
+            "reason_code": "holiday",
+            "status": "active",
+            "suppress_care_alerts": True,
+            "note": "synthetic leave",
+            "recorded_by": "synth",
+            "source": "synthetic",
+        })
+    away_rows.append({
+        "person": "C007",
+        "start_week": last.isoformat(),
+        "end_week": last.isoformat(),
+        "reason_code": "sick",
+        "status": "completed",
+        "suppress_care_alerts": True,
+        "note": "",
+        "recorded_by": "synth",
+        "source": "synthetic",
+    })
+    away_rows.append({
+        "person": "M021",
+        "start_week": (last - timedelta(weeks=12)).isoformat(),
+        "end_week": (last + timedelta(weeks=4)).isoformat(),
+        "reason_code": "work_travel",
+        "status": "active",
+        "suppress_care_alerts": True,
+        "note": "FIFO",
+        "recorded_by": "synth",
+        "source": "synthetic",
+    })
+    pl.DataFrame(away_rows).write_csv(away_path)
+    print(f"  away file  : {away_path} ({len(away_rows)} intervals)")
+
+
     weekly = df.group_by("week").len().sort("week")
     counts = weekly["len"].to_list()
     deltas = [abs(counts[i] - counts[i - 1]) for i in range(1, len(counts))]

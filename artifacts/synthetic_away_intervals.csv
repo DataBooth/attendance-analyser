@@ -1,0 +1,6 @@
+person,start_week,end_week,reason_code,status,suppress_care_alerts,note,recorded_by,source
+C003,2026-09-27,2026-10-25,holiday,active,true,synthetic leave,synth,synthetic
+C011,2026-09-27,2026-10-25,holiday,active,true,synthetic leave,synth,synthetic
+C019,2026-09-27,2026-10-25,holiday,active,true,synthetic leave,synth,synthetic
+C007,2026-10-25,2026-10-25,sick,completed,true,"",synth,synthetic
+M021,2026-08-02,2026-11-22,work_travel,active,true,FIFO,synth,synthetic

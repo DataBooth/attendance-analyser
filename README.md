@@ -52,9 +52,17 @@ For full server Python (recommended for DuckDB + CSV), open
 - Second-visit / sticky-at-8-weeks funnel  
 - Life-cycle scatter (tenure × rate since first)  
 
-Definitions, ethics, and future work: [`roadmap.md`](roadmap.md).
+**For pastors / ministry leaders:** how the care metrics work in plain language —
+[`docs/care-metrics-for-pastors.md`](docs/care-metrics-for-pastors.md).
+
+**Proposal:** excused absences / known away —
+[`docs/proposal-excused-absences.md`](docs/proposal-excused-absences.md).
+
+Technical roadmap: [`roadmap.md`](roadmap.md).
 
 ## Data format
+
+### Attendance (required)
 
 Long-format CSV with one row per person per week attended:
 
@@ -63,8 +71,16 @@ Long-format CSV with one row per person per week attended:
 | 2025-01-05 | C001   |
 | 2025-01-05 | C002   |
 
-Synthetic data includes explicit life-cycle patterns for demos
-(`just synth`).
+### Away intervals (optional, Phase 1)
+
+| person | start_week | end_week | reason_code | status | suppress_care_alerts |
+|--------|------------|----------|-------------|--------|----------------------|
+| C003 | 2026-09-14 | 2026-10-25 | holiday | active | true |
+
+Loaded via `AttendanceAnalyser(attendance.csv, away_csv=away.csv)`.  
+See [`docs/proposal-excused-absences.md`](docs/proposal-excused-absences.md).
+
+Synthetic attendance + away files: `just synth`.
 
 ## Quick start
 
